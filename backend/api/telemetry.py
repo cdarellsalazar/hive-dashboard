@@ -17,6 +17,7 @@ class ConnectionManager:
     async def broadcast(self, message: str):
         for connection in self.active_connections:
             await connection.send_text(message)
+            print(f"Broadcast complete to {len(self.active_connections)} clients")
 
 manager = ConnectionManager()
 
@@ -28,10 +29,8 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_text()
-            print(f"Received data: {data[:100]}...")  # Print first 100 chars
+            print(f"Received data: {data[:100]}...")
             await manager.broadcast(data)
-            print(f"Broadcast complete to {len(manager.active_connections)} clients")
     except WebSocketDisconnect:
         print(f"Client {client_host} disconnected")
         manager.disconnect(websocket)
-

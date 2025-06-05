@@ -62,3 +62,65 @@
 .history-table th {
   background-color: #f2f2f2;
 }
+
+.drone-selector {
+  margin-bottom: 20px;
+}
+
+.drone-cards {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.drone-card {
+  background: #f0f0f0;
+  border: 2px solid #ddd;
+  border-radius: 5px;
+  padding: 15px;
+  min-width: 150px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.drone-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.drone-card.selected {
+  border-color: #4a90e2;
+  background: #e6f0ff;
+}
+
+.drone-name {
+  font-weight: bold;
+  font-size: 1.2em;
+  margin-bottom: 5px;
+}
+
+.drone-status {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.status-indicator {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+
+.status-indicator.flying {
+  background-color: #4caf50;
+}
+
+.status-indicator.grounded {
+  background-color: #f44336;
+}
+
+.drone-battery {
+  font-size: 0.9em;
+}

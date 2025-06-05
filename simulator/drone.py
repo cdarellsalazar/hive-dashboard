@@ -4,42 +4,53 @@ import random
 import time
 import websockets
 import httpx
+import uuid
 
 class Drone:
-    def __init__(self):
-        self.battery = 100.0
+    def __init__(self, drone_id, name, initial_lat=34.0700, initial_lng=-118.4398, battery_capacity=100.0):
+        self.id = drone_id
+        self.name = name
+        self.battery = battery_capacity
         self.altitude = 0.0
         self.speed = 0.0
-        self.lat = 34.0700
-        self.lng = -118.4398 # UCLA coordinates lmao
+        self.lat = initial_lat
+        self.lng = initial_lng
         self.is_flying = False
+        self.battery_drain_rate = random.uniform(0.01, 0.05)  # Each drone has different battery consumption
+        self.max_altitude = random.uniform(10.0, 30.0)  # Different max altitude per drone
+        self.max_speed = random.uniform(8.0, 15.0)  # Different max speed per drone
 
     def update(self):
-        # simulates battery drain
-        self.battery -= random.uniform(0.01, 0.05)
+        # Simulates battery drain
+        self.battery -= self.battery_drain_rate
         if self.battery < 0:
-            self.battery =0
+            self.battery = 0
+            if self.is_flying:
+                self.is_flying = False  # Force landing if battery dies
 
-        # simulating altitude changes
+        # Simulating altitude changes
         if self.is_flying:
-            self.altitude += random.uniform(-0.5, 0.8)
-            self.altitude = max(0, self.altitude)
+            altitude_change = random.uniform(-0.5, 0.8)
+            self.altitude += altitude_change
+            self.altitude = min(max(0, self.altitude), self.max_altitude)
         else:
             self.altitude = max(0, self.altitude - random.uniform(0.1, 0.3))
         
-        # simulating speed
+        # Simulating speed
         if self.is_flying:
-            self.speed = random.uniform(0, 10)
+            self.speed = random.uniform(0, self.max_speed)
         else: 
             self.speed = 0
 
-        # simulating position changes if moving
+        # Simulating position changes if moving
         if self.speed > 0:
-            self.lat += random.uniform(-0.0001, 0.0001)
-            self.lng += random.uniform(-0.0001, 0.0001)
+            self.lat += random.uniform(-0.0001, 0.0001) * self.speed / 5
+            self.lng += random.uniform(-0.0001, 0.0001) * self.speed / 5
     
     def to_dict(self):
         return {
+            "id": self.id,
+            "name": self.name,
             "battery": self.battery, 
             "altitude": self.altitude,
             "speed": self.speed,
@@ -50,18 +61,35 @@ class Drone:
         }
     
     def toggle_flying(self):
+        if self.battery <= 5.0 and not self.is_flying:
+            print(f"Drone {self.name} battery too low for takeoff!")
+            return
+            
         self.is_flying = not self.is_flying
         if self.is_flying:
-            print("Taking off...")
+            print(f"Drone {self.name} taking off...")
         else:
-            print("Landing...")
+            print(f"Drone {self.name} landing...")
+
+async def schedule_landing(drone, delay):
+    await asyncio.sleep(delay)
+    if drone.is_flying:
+        drone.toggle_flying()
 
 async def connect_and_send():
-    drone = Drone()
+    # Create multiple drones with different parameters
+    drones = [
+        Drone(str(uuid.uuid4()), "Alpha", initial_lat=34.0700, initial_lng=-118.4398, battery_capacity=100.0),
+        Drone(str(uuid.uuid4()), "Beta", initial_lat=34.0705, initial_lng=-118.4388, battery_capacity=95.0),
+        Drone(str(uuid.uuid4()), "Gamma", initial_lat=34.0695, initial_lng=-118.4408, battery_capacity=98.0),
+        Drone(str(uuid.uuid4()), "Delta", initial_lat=34.0710, initial_lng=-118.4378, battery_capacity=90.0),
+        Drone(str(uuid.uuid4()), "Epsilon", initial_lat=34.0690, initial_lng=-118.4418, battery_capacity=97.0)
+    ]
 
-    await asyncio.sleep(5)
-    drone.toggle_flying()
-
+    # Stagger drone takeoffs
+    takeoff_delays = [5, 10, 15, 20, 25]
+    landing_delays = [60, 70, 80, 90, 100]
+    
     uri = "ws://backend:8000/api/telemetry/ws"
     print(f"Attempting to connect to {uri}")
 
@@ -69,21 +97,30 @@ async def connect_and_send():
         async with websockets.connect(uri) as websocket:
             print("Connected to WebSocket server")
 
-            asyncio.create_task(schedule_landing(drone, 60))
+            # Schedule takeoffs with different delays
+            for i, drone in enumerate(drones):
+                asyncio.create_task(delayed_takeoff(drone, takeoff_delays[i]))
+                asyncio.create_task(schedule_landing(drone, landing_delays[i]))
 
             while True:
-                drone.update()
-                telemetry = drone.to_dict()
-                await websocket.send(json.dumps(telemetry))
-                print(f"Sent telemetry: Alt={telemetry['altitude']:.2f}m, Batt={telemetry['battery']:.2f}%")
+                # Update and send data for all drones
+                all_telemetry = []
+                for drone in drones:
+                    drone.update()
+                    telemetry = drone.to_dict()
+                    all_telemetry.append(telemetry)
+                    print(f"Drone {drone.name}: Alt={telemetry['altitude']:.2f}m, Batt={telemetry['battery']:.2f}%")
+                
+                # Send combined data
+                await websocket.send(json.dumps({"drones": all_telemetry}))
                 await asyncio.sleep(1)
+                
     except Exception as e:
         print(f"Error: {e}")
 
-async def schedule_landing(drone, delay):
+async def delayed_takeoff(drone, delay):
     await asyncio.sleep(delay)
-    if drone.is_flying:
-        drone.toggle_flying()
+    drone.toggle_flying()
 
 async def main():
     print("Simulator starting...")
@@ -111,7 +148,4 @@ async def main():
 
 if __name__ == "__main__":
     print("Simulator script started")
-    try:
-        asyncio.run(main())
-    except Exception as e:
-        print(f"Error running main async function: {str(e)}")
+    asyncio.run(main())
