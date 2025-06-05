@@ -7,32 +7,42 @@ function App() {
     const [statusHistory, setStatusHistory] = useState([]);
 
     useEffect(() => {
-        const ws = new WebSocket(`ws://${window.location.hostname}:8000/api/telemetry/ws`);
-
+        console.log('Connecting to WebSocket...');
+        // Use backend:8000 when inside Docker, or window.location.hostname for browser
+        const wsUrl = `ws://${window.location.hostname}:8000/api/telemetry/ws`;
+        console.log(`WebSocket URL: ${wsUrl}`);
+        
+        const ws = new WebSocket(wsUrl);
+        
         ws.onopen = () => {
-            console.log('Connected to WebSocket');
+            console.log('WebSocket connected');
             setConnected(true);
         };
-
+        
         ws.onclose = () => {
-            console.log('Disconnected from WebSocket');
+            console.log('WebSocket disconnected');
             setConnected(false);
         };
-
+        
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
+        
         ws.onmessage = (event) => {
+            console.log('Received message:', event.data.substring(0, 50) + '...');
             try {
                 const data = JSON.parse(event.data);
+                console.log('Parsed data:', data);
                 setTelemetryData(data);
-
+                
+                // Add to history with timestamp
                 setStatusHistory(prev => {
-                    const newHistory = [...prev, {
-                        timestamp: new Date().toISOString(),
-                        ...data
-                    }];
+                    const newHistory = [...prev, {...data, timestamp: new Date()}];
+                    // Keep only the latest 10 entries
                     return newHistory.slice(-10);
                 });
             } catch (error) {
-                console.error('Error parsing telemetry data:', error);
+                console.error('Error parsing data:', error);
             }
         };
 
@@ -40,6 +50,10 @@ function App() {
             ws.close();
         };
     }, []);
+
+    useEffect(() => {
+        console.log('Current telemetry data:', telemetryData);
+    }, [telemetryData]);
 
     return (
         <div className="App">

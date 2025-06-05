@@ -26,6 +26,7 @@ services:
     build:
       context: ../simulator
       dockerfile: ../docker/simulator.Dockerfile
+    environment:
+    - BACKEND_URL=backend:8000
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend

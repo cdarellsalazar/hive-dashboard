@@ -22,11 +22,16 @@ manager = ConnectionManager()
 
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    client_host = websocket.client.host
+    print(f"New WebSocket connection from {client_host}")
     await manager.connect(websocket)
     try:
         while True:
             data = await websocket.receive_text()
+            print(f"Received data: {data[:100]}...")  # Print first 100 chars
             await manager.broadcast(data)
+            print(f"Broadcast complete to {len(manager.active_connections)} clients")
     except WebSocketDisconnect:
+        print(f"Client {client_host} disconnected")
         manager.disconnect(websocket)
 

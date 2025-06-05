@@ -62,7 +62,7 @@ async def connect_and_send():
     await asyncio.sleep(5)
     drone.toggle_flying()
 
-    uri = "ws://localhost:8000/api/telemetry/ws"
+    uri = "ws://backend:8000/api/telemetry/ws"
     print(f"Attempting to connect to {uri}")
 
     try:
@@ -86,18 +86,32 @@ async def schedule_landing(drone, delay):
         drone.toggle_flying()
 
 async def main():
-    while True:
-        try:
-            async with httpx.AsyncClient() as client:
-                resp = await client.get("http://localhost:8000/health")
-                if resp.status_code == 200:
-                    print("Backend server is up")
-                    break
-        except Exception:
-            print("backend server not available yet, retrying...")
-        await asyncio.sleep(5)
+    print("Simulator starting...")
+    try:
+        while True:
+            try:
+                print(f"Checking if backend is up at http://backend:8000/health")
+                async with httpx.AsyncClient() as client:
+                    resp = await client.get("http://backend:8000/health")
+                    print(f"Backend health check response: {resp.status_code}")
+                    if resp.status_code == 200:
+                        print("Backend server is up")
+                        break
+            except Exception as e:
+                print(f"Error connecting to backend: {str(e)}")
+            print("Backend server not available yet, retrying...")
+            await asyncio.sleep(5)
 
-    await connect_and_send()
+        print("Calling connect_and_send()...")
+        await connect_and_send()
+    except Exception as e:
+        print(f"Fatal error in main(): {str(e)}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    print("Simulator script started")
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print(f"Error running main async function: {str(e)}")

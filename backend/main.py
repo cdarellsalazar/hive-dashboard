@@ -1,8 +1,19 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api import telemetry
 
-app = FastAPI(title="Drone Dashboard API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup code (runs before application starts)
+    print("Server started. Routes:")
+    for route in app.routes:
+        print(f"Route: {route.path}, Methods: {getattr(route, 'methods', ['WebSocket'])}")
+    yield
+    # Shutdown code (runs when application is shutting down)
+    print("Server shutting down")
+
+app = FastAPI(title="Drone Dashboard API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -20,6 +31,7 @@ async def root():
 
 @app.get("/health")
 async def health_check():
+    print("Health check endpoint called") 
     return {"status": "healthy"}
 
 if __name__ == "__main__":
